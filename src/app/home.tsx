@@ -29,6 +29,7 @@ export default function Home() {
   async function fetchCategories() {
     try {
       const { data } = await api.get("/categories")
+      console.log("Categorias:", data) // Log para inspecionar as categorias
       setCategories(data)
       setCategory(data[0].id)
     } catch (error) {
@@ -36,39 +37,44 @@ export default function Home() {
       Alert.alert("Categorias", "Não foi possível carregar as categorias.")
     }
   }
+  
 
   async function fetchMarkets() {
     try {
       if (!category) {
         return
       }
-
+  
       const { data } = await api.get("/markets/category/" + category)
+      console.log("Mercados:", data) // Log para inspecionar os mercados
       setMarkets(data)
     } catch (error) {
       console.log(error)
       Alert.alert("Locais", "Não foi possível carregar os locais.")
     }
   }
+  
 
   async function getCurrentLocation() {
     try {
       const { granted } = await Location.requestForegroundPermissionsAsync()
-
+  
       if (granted) {
         const location = await Location.getCurrentPositionAsync()
-        console.log(location)
+        console.log("Localização Atual:", location) // Log da localização
       }
     } catch (error) {
       console.log(error)
     }
   }
+  
 
   useEffect(() => {
     fetchCategories()
   }, [])
 
   useEffect(() => {
+    getCurrentLocation()
     fetchMarkets()
   }, [category])
 

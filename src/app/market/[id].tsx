@@ -1,104 +1,105 @@
-import { useEffect, useState, useRef } from "react"
-import { View, Alert, Modal, StatusBar, ScrollView } from "react-native"
-import { router, useLocalSearchParams, Redirect } from "expo-router"
-import { useCameraPermissions, CameraView } from "expo-camera"
+import { useEffect, useState, useRef } from "react";
+import { View, Alert, Modal, StatusBar, ScrollView } from "react-native";
+import { router, useLocalSearchParams, Redirect } from "expo-router";
+import { useCameraPermissions, CameraView } from "expo-camera";
 
-import { Button } from "@/components/button"
-import { Loading } from "@/components/loading"
-import { Cover } from "@/components/market/cover"
-import { Coupon } from "@/components/market/coupon"
-import { Details, PropsDetails } from "@/components/market/details"
+import { Button } from "@/components/button";
+import { Loading } from "@/components/loading";
+import { Cover } from "@/components/market/cover";
+import { Coupon } from "@/components/market/coupon";
+import { Details, PropsDetails } from "@/components/market/details";
 
-import { api } from "@/services/api"
+import { api } from "@/services/api";
 
 type DataProps = PropsDetails & {
-  cover: string
-}
+  cover: string;
+};
 
 export default function Market() {
-  const [data, setData] = useState<DataProps>()
-  const [coupon, setCoupon] = useState<string | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
-  const [couponIsFetching, setCouponIsFetching] = useState(false)
-  const [isVisibleCameraModal, setIsVisibleCameraModal] = useState(false)
+  const [data, setData] = useState<DataProps>();
+  const [coupon, setCoupon] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [couponIsFetching, setCouponIsFetching] = useState(false);
+  const [isVisibleCameraModal, setIsVisibleCameraModal] = useState(false);
 
-  const [_, requestPermission] = useCameraPermissions()
-  const params = useLocalSearchParams<{ id: string }>()
+  const [_, requestPermission] = useCameraPermissions();
+  const params = useLocalSearchParams<{ id: string }>();
 
-  const qrLock = useRef(false)
-  console.log(params.id)
+  const qrLock = useRef(false);
+  console.log(params.id);
+
+  function isValidQRCode(data: string): boolean {
+    return data === params.id; // Verifica se o QR Code corresponde ao ID do cupom
+  }
+  
 
   async function fetchMarket() {
     try {
-      const { data } = await api.get(`/markets/${params.id}`)
-      setData(data)
-      setIsLoading(false)
+      const { data } = await api.get(`/markets/${params.id}`);
+      setData(data);
+      setIsLoading(false);
     } catch (error) {
-      console.log(error)
+      console.log(error);
       Alert.alert("Erro", "Não foi possível carregar os dados", [
         {
           text: "OK",
           onPress: () => router.back(),
         },
-      ])
+      ]);
     }
   }
 
   async function handleOpenCamera() {
     try {
-      const { granted } = await requestPermission()
+      const { granted } = await requestPermission();
 
       if (!granted) {
-        return Alert.alert("Câmera", "Você precisa habilitar o uso da câmera")
+        return Alert.alert("Câmera", "Você precisa habilitar o uso da câmera");
       }
 
-      qrLock.current = false
-      setIsVisibleCameraModal(true)
+      qrLock.current = false;
+      setIsVisibleCameraModal(true);
     } catch (error) {
-      console.log(error)
-      Alert.alert("Câmera", "Não foi possível utilizar a câmera")
+      console.log(error);
+      Alert.alert("Câmera", "Não foi possível utilizar a câmera");
     }
   }
 
   async function getCoupon(id: string) {
     try {
-      setCouponIsFetching(true)
+      setCouponIsFetching(true);
 
-      const { data } = await api.patch("/coupons/" + id)
+      const { data } = await api.patch("/coupons/" + id);
 
-      Alert.alert("Cupom", data.coupon)
-      setCoupon(data.coupon)
+      Alert.alert("Cupom", data.coupon);
+      setCoupon(data.coupon);
     } catch (error) {
-      console.log(error)
-      Alert.alert("Erro", "Não foi possível utilizar o cupom")
+      console.log(error);
+      Alert.alert("Erro", "Não foi possível utilizar o cupom");
     } finally {
-      setCouponIsFetching(false)
+      setCouponIsFetching(false);
     }
   }
 
   function handleUseCoupon(id: string) {
-    setIsVisibleCameraModal(false)
+    setIsVisibleCameraModal(false);
 
-    Alert.alert(
-      "Cupom",
-      "Não é possível reutilizar um cupom resgatado. Deseja realmente resgatar o cupom?",
-      [
-        { style: "cancel", text: "Não" },
-        { text: "Sim", onPress: () => getCoupon(id) },
-      ]
-    )
+    Alert.alert("Cupom", "Deseja realmente utlizar um cupom?", [
+      { style: "cancel", text: "Não" },
+      { text: "Sim", onPress: () => getCoupon(id) },
+    ]);
   }
 
   useEffect(() => {
-    fetchMarket()
-  }, [params.id, coupon])
+    fetchMarket();
+  }, [params.id, coupon]);
 
   if (isLoading) {
-    return <Loading />
+    return <Loading />;
   }
 
   if (!data) {
-    return <Redirect href="/home" />
+    return <Redirect href="/home" />;
   }
 
   return (
@@ -123,8 +124,18 @@ export default function Market() {
           facing="back"
           onBarcodeScanned={({ data }) => {
             if (data && !qrLock.current) {
-              qrLock.current = true
-              setTimeout(() => handleUseCoupon(data), 500)
+              qrLock.current = true;
+
+              if (isValidQRCode(data)) {
+                setTimeout(() => handleUseCoupon(data), 500); // Lógica de uso do cupom
+              } else {
+                Alert.alert(
+                  "QR Code",
+                  "O QR Code não corresponde ao cupom esperado."
+                );
+                router.back()
+                qrLock.current =false ; // Libera o bloqueio para novas leituras
+              }
             }
           }}
         />
@@ -139,5 +150,5 @@ export default function Market() {
         </View>
       </Modal>
     </View>
-  )
+  );
 }
